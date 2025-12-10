@@ -15,10 +15,10 @@ void main() {
     WidgetTester tester,
   ) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const ProviderScope(child: YunseulApp()));
+    await tester.pumpWidget(const ProviderScope(child: UneseuleApp()));
 
     // Verify that the welcome text is displayed.
-    expect(find.text('Welcome to Yunseul'), findsOneWidget);
+    expect(find.text('Welcome to Uneseule'), findsOneWidget);
     expect(find.text('Voice AI Companion Doll'), findsOneWidget);
   });
 }

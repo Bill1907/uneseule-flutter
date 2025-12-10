@@ -9,25 +9,23 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Log current environment
-  debugPrint('🚀 Starting Yunseul app in ${Environment.current.name} mode');
+  debugPrint('🚀 Starting Uneseule app in ${Environment.current.name} mode');
   debugPrint('📡 API Base URL: ${Environment.apiBaseUrl}');
 
   runApp(
     // ProviderScope is required for Riverpod state management
-    const ProviderScope(
-      child: YunseulApp(),
-    ),
+    const ProviderScope(child: UneseuleApp()),
   );
 }
 
 /// Root application widget
-class YunseulApp extends StatelessWidget {
-  const YunseulApp({super.key});
+class UneseuleApp extends StatelessWidget {
+  const UneseuleApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Yunseul',
+      title: 'Uneseule',
       debugShowCheckedModeBanner: false,
 
       // Apply custom theme
@@ -51,9 +49,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('윤슬 (Yunseul)'),
-      ),
+      appBar: AppBar(title: const Text('윤슬 (Uneseule)')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -63,7 +59,9 @@ class HomeScreen extends StatelessWidget {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(60),
               ),
               child: Icon(
@@ -76,7 +74,7 @@ class HomeScreen extends StatelessWidget {
 
             // Welcome text
             Text(
-              'Welcome to Yunseul',
+              'Welcome to Uneseule',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 8),
@@ -94,7 +92,9 @@ class HomeScreen extends StatelessWidget {
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outline.withValues(alpha: 0.2),
                 ),
               ),
               child: Column(
@@ -105,11 +105,7 @@ class HomeScreen extends StatelessWidget {
                     Environment.current.name.toUpperCase(),
                   ),
                   const SizedBox(height: 8),
-                  _buildInfoRow(
-                    context,
-                    'API URL',
-                    Environment.apiBaseUrl,
-                  ),
+                  _buildInfoRow(context, 'API URL', Environment.apiBaseUrl),
                 ],
               ),
             ),
@@ -124,8 +120,8 @@ class HomeScreen extends StatelessWidget {
             Text(
               'Next: Bluetooth, API, WebRTC integration',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
           ],
         ),
@@ -137,16 +133,13 @@ class HomeScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
         Flexible(
           child: Text(
             value,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
             textAlign: TextAlign.right,
             overflow: TextOverflow.ellipsis,
           ),
