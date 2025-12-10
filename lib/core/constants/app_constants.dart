@@ -1,7 +1,7 @@
 /// Application-wide constants
 class AppConstants {
   // App Info
-  static const String appName = 'Yunseul';
+  static const String appName = 'Uneseule';
   static const String appNameKorean = '윤슬';
 
   // Bluetooth
