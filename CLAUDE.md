@@ -24,9 +24,16 @@ This is a Flutter-based mobile application for a voice AI companion doll that en
 ### Key Technical Decisions
 
 - **Flutter over React Native**: Native performance, better Bluetooth integration, single codebase
-- **Bluetooth Classic HFP**: Proven audio streaming, low latency (50-100ms), 16kHz audio
+- **BLE for Device Provisioning**: ESP32-S3 기반 디바이스 초기 설정 및 WiFi provisioning
+- **Bluetooth Classic HFP**: 오디오 스트리밍용 (Phase 2)
 - **WebRTC**: Real-time bidirectional audio streaming to backend
 - **ElevenLabs API**: Integrated STT → LLM → TTS pipeline for rapid MVP
+
+### Device Hardware
+
+- **MCU**: ESP32-S3 (Bluetooth 5.0 LE + WiFi)
+- **Communication**: BLE for provisioning, WiFi for cloud connectivity
+- **Audio**: I2S microphone + speaker
 
 ---
 
@@ -119,7 +126,7 @@ flutter run -d <physical-device-id>
 lib/
   main.dart                    # Application entry point
   core/
-    constants/                 # App constants, API keys
+    constants/                 # App constants, API keys, BLE UUIDs
     theme/                     # Theme configuration
     utils/                     # Utility functions
   features/
@@ -127,15 +134,48 @@ lib/
       data/                    # Data layer (repositories, data sources)
       domain/                  # Domain layer (entities, use cases)
       presentation/            # Presentation layer (widgets, providers)
+    device_provisioning/       # BLE Device Setup (Phase 0 - MVP Core)
+      data/
+        datasources/
+          ble_datasource.dart  # BLE scanning, connection, GATT operations
+        models/
+          device_info_model.dart
+          wifi_credentials_model.dart
+        repositories/
+          device_repository_impl.dart
+      domain/
+        entities/
+          device_info.dart     # MAC, battery, firmware, secret key
+          wifi_status.dart
+        repositories/
+          device_repository.dart
+        usecases/
+          scan_devices.dart
+          connect_device.dart
+          read_device_info.dart
+          provision_wifi.dart
+      presentation/
+        providers/
+          device_scan_provider.dart
+          device_connection_provider.dart
+          wifi_provisioning_provider.dart
+        screens/
+          device_scan_screen.dart
+          device_connect_screen.dart
+          wifi_setup_screen.dart
+          provisioning_complete_screen.dart
+        widgets/
+          device_list_item.dart
+          wifi_form.dart
+          connection_status_indicator.dart
     conversation/              # Real-time conversation feature
-      bluetooth/               # Bluetooth Classic HFP integration
+      bluetooth/               # Bluetooth Classic HFP integration (Phase 2)
       webrtc/                  # WebRTC streaming
       presentation/            # Conversation UI
     parent_dashboard/          # Parent monitoring features
       conversation_logs/       # View conversation history
       safety_alerts/           # Risk notifications
       settings/                # Parental controls
-    device_pairing/            # Device pairing flow
   shared/
     widgets/                   # Reusable UI components
     services/                  # Global services
@@ -154,6 +194,110 @@ integration_test/              # E2E tests
 ---
 
 ## Key Features Implementation
+
+### 0. BLE Device Provisioning (Phase 0 - MVP Core)
+
+**Purpose**: ESP32-S3 디바이스 초기 설정 및 WiFi 연결
+
+**User Flow**:
+```
+1. 사용자가 디바이스 구매 → 앱 다운로드
+2. 앱에서 BLE 스캔 → 디바이스 발견 (name: "Uneseule-XXXX")
+3. BLE 연결 → 디바이스 정보 수신
+4. WiFi credentials 입력 → 디바이스에 전송
+5. 디바이스가 WiFi 연결 → 클라우드 등록 완료
+```
+
+**BLE GATT Service Structure**:
+```
+Device Info Service (UUID: 0x180A)
+├── MAC Address (0x2A29) - Read
+├── Firmware Version (0x2A26) - Read
+├── Battery Level (0x2A19) - Read/Notify
+└── Device Secret Key (Custom UUID) - Read (암호화 필요)
+
+WiFi Provisioning Service (Custom UUID)
+├── WiFi SSID (Write)
+├── WiFi Password (Write)
+├── WiFi Status (Read/Notify)
+└── Provisioning Command (Write)
+```
+
+**Device Status Model**:
+```dart
+@freezed
+class DeviceInfo with _$DeviceInfo {
+  const factory DeviceInfo({
+    required String macAddress,
+    required int batteryLevel,        // 0-100%
+    required String firmwareVersion,  // e.g., "1.0.0"
+    required String deviceSecretKey,  // 디바이스 고유 인증키
+    required WifiStatus wifiStatus,
+  }) = _DeviceInfo;
+}
+
+enum WifiStatus {
+  disconnected,
+  connecting,
+  connected,
+  failed,
+}
+```
+
+**Recommended Packages**:
+```yaml
+dependencies:
+  flutter_blue_plus: ^1.32.0  # BLE for iOS & Android (ESP32-S3 compatible)
+```
+
+**Key Implementation**:
+```dart
+class BleProvisioningService {
+  FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
+
+  // 1. 디바이스 스캔
+  Stream<List<ScanResult>> scanForDevices() {
+    return flutterBlue.scanResults.map((results) =>
+      results.where((r) => r.device.name.startsWith('Uneseule')).toList()
+    );
+  }
+
+  // 2. 디바이스 연결
+  Future<BluetoothDevice> connectToDevice(ScanResult result) async {
+    await result.device.connect(timeout: Duration(seconds: 10));
+    return result.device;
+  }
+
+  // 3. 디바이스 정보 읽기
+  Future<DeviceInfo> readDeviceInfo(BluetoothDevice device) async {
+    final services = await device.discoverServices();
+    // Read characteristics from Device Info Service (0x180A)
+    // Parse MAC, battery, firmware, secret key
+  }
+
+  // 4. WiFi credentials 전송
+  Future<bool> provisionWifi(
+    BluetoothDevice device,
+    String ssid,
+    String password,
+  ) async {
+    // Write SSID and password to WiFi Provisioning Service
+    // Monitor WiFi Status characteristic for result
+  }
+
+  // 5. 연결 해제
+  Future<void> disconnect(BluetoothDevice device) async {
+    await device.disconnect();
+  }
+}
+```
+
+**Security Considerations**:
+- Device Secret Key는 암호화하여 전송
+- WiFi password는 BLE 연결 중에만 메모리에 유지
+- Provisioning 완료 후 즉시 BLE 연결 해제
+
+---
 
 ### 1. Bluetooth Classic HFP Integration
 
@@ -282,9 +426,10 @@ class ConversationLogs extends _$ConversationLogs {
 - **json_serializable**: For JSON parsing
 - **retrofit**: (optional) For type-safe API calls
 
-### Real-time Communication
+### Bluetooth & Real-time Communication
+- **flutter_blue_plus**: ^1.32.0 (BLE for ESP32-S3 provisioning)
 - **flutter_webrtc**: ^0.9.0 (WebRTC)
-- **flutter_bluetooth_serial**: ^0.4.0 (Android Bluetooth Classic)
+- **flutter_bluetooth_serial**: ^0.4.0 (Android Bluetooth Classic - Phase 2)
 - **web_socket_channel**: ^2.4.0 (WebSocket signaling)
 
 ### Local Storage
@@ -605,10 +750,17 @@ flutter build apk --dart-define=ENVIRONMENT=prod
 
 ## MVP Timeline (3 Months)
 
-### Week 1-4: Foundation
+### Phase 0 (Week 1-2): BLE Device Provisioning - **CURRENT PRIORITY**
+- [x] Flutter 프로젝트 기본 구조 설정
+- [ ] BLE 스캔 및 디바이스 발견 기능
+- [ ] BLE 연결 및 디바이스 정보 읽기 (MAC, battery, firmware, secret key)
+- [ ] WiFi provisioning UI 및 기능
+- [ ] 디바이스-클라우드 등록 연동
+
+### Week 3-4: Foundation
 - Backend API integration
 - Authentication flow
-- Bluetooth scanning and pairing UI
+- 사용자 계정-디바이스 연결
 
 ### Week 5-8: Core Features
 - Bluetooth HFP audio streaming (Platform channels)
@@ -630,7 +782,23 @@ flutter build apk --dart-define=ENVIRONMENT=prod
 
 ## Troubleshooting
 
-### Bluetooth Issues
+### BLE Provisioning Issues (ESP32-S3)
+- **Device not found**:
+  - Android: `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`, `ACCESS_FINE_LOCATION` 권한 확인
+  - iOS: `NSBluetoothAlwaysUsageDescription` in Info.plist
+  - 디바이스가 Advertising 모드인지 확인
+- **Connection timeout**:
+  - ESP32-S3 BLE connection interval 조정 (7.5ms ~ 4s)
+  - 연결 시도 timeout을 10초 이상으로 설정
+- **Service discovery 실패**:
+  - `device.discoverServices()` 호출 전 연결 완료 대기
+  - iOS에서는 연결 후 1-2초 딜레이 필요할 수 있음
+- **WiFi provisioning 실패**:
+  - SSID/Password UTF-8 인코딩 확인
+  - ESP32-S3 측 WiFi 연결 로직 확인
+  - 2.4GHz WiFi만 지원 (5GHz 미지원)
+
+### Bluetooth Classic Issues (Phase 2)
 - **Device not found**: Check Bluetooth permissions in AndroidManifest.xml
 - **Audio not streaming**: Verify HFP profile support on device
 - **Connection drops**: Implement reconnection logic with exponential backoff

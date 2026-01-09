@@ -26,8 +26,6 @@
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -45,5 +43,20 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>윤슬 인형과 연결하여 대화하기 위해 블루투스 권한이 필요합니다.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>윤슬 인형과 연결하여 대화하기 위해 블루투스 권한이 필요합니다.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>윤슬 인형과 안정적인 연결을 위해 로컬 네트워크 권한이 필요합니다.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_uneseule._tcp</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>bluetooth-central</string>
+	</array>
 </dict>
 </plist>
