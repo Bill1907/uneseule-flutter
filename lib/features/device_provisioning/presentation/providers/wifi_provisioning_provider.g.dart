@@ -26,7 +26,7 @@ final wifiStatusStreamProvider = AutoDisposeStreamProvider<WifiStatus>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef WifiStatusStreamRef = AutoDisposeStreamProviderRef<WifiStatus>;
-String _$wifiProvisioningHash() => r'1ac99109b993d2e96682c620fec4c1cca68fff4b';
+String _$wifiProvisioningHash() => r'0d0a1d53810aba084b62ba68f3b486524e9ccefd';
 
 /// WiFi Provisioning 상태 관리 Provider
 ///

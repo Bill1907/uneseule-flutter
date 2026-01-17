@@ -21,11 +21,19 @@ class WifiCredentialsModel {
     );
   }
 
-  /// SSID를 바이트 배열로 변환
-  List<int> get ssidBytes => utf8.encode(ssid);
+  /// SSID를 바이트 배열로 변환 (NULL 문자 제거)
+  /// ESP32 C 문자열 호환성을 위해 NULL 문자(0x00)를 필터링
+  List<int> get ssidBytes {
+    final bytes = utf8.encode(ssid);
+    return bytes.where((b) => b != 0).toList();
+  }
 
-  /// 비밀번호를 바이트 배열로 변환
-  List<int> get passwordBytes => utf8.encode(password);
+  /// 비밀번호를 바이트 배열로 변환 (NULL 문자 제거)
+  /// ESP32 C 문자열 호환성을 위해 NULL 문자(0x00)를 필터링
+  List<int> get passwordBytes {
+    final bytes = utf8.encode(password);
+    return bytes.where((b) => b != 0).toList();
+  }
 }
 
 /// WiFi 상태 데이터 모델
@@ -52,20 +60,26 @@ class WifiStatusModel {
     String? ipAddress;
 
     if (bytes.length > 2) {
-      final ssidLen = bytes[1];
-      if (ssidLen > 0 && bytes.length > 2 + ssidLen) {
+      // ssidLen을 unsigned로 처리하고 최대 32바이트로 제한
+      final ssidLen = bytes[1] & 0xFF;
+      final clampedSsidLen = ssidLen > 32 ? 32 : ssidLen;
+
+      if (clampedSsidLen > 0 && bytes.length >= 2 + clampedSsidLen) {
         try {
-          ssid = utf8.decode(bytes.sublist(2, 2 + ssidLen));
+          ssid = utf8.decode(bytes.sublist(2, 2 + clampedSsidLen));
         } catch (_) {
           // UTF-8 디코딩 실패 시 무시
         }
 
-        final ipStart = 2 + ssidLen;
-        if (bytes.length > ipStart + 1) {
-          final ipLen = bytes[ipStart];
-          if (ipLen > 0 && bytes.length >= ipStart + 1 + ipLen) {
+        final ipStart = 2 + clampedSsidLen;
+        if (bytes.length > ipStart) {
+          // ipLen을 unsigned로 처리하고 최대 15바이트로 제한 (xxx.xxx.xxx.xxx)
+          final ipLen = bytes[ipStart] & 0xFF;
+          final clampedIpLen = ipLen > 15 ? 15 : ipLen;
+
+          if (clampedIpLen > 0 && bytes.length >= ipStart + 1 + clampedIpLen) {
             try {
-              ipAddress = utf8.decode(bytes.sublist(ipStart + 1, ipStart + 1 + ipLen));
+              ipAddress = utf8.decode(bytes.sublist(ipStart + 1, ipStart + 1 + clampedIpLen));
             } catch (_) {
               // UTF-8 디코딩 실패 시 무시
             }

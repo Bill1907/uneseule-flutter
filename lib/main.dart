@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/config/environment.dart';
-import 'core/router/app_router.dart';
-import 'core/theme/app_theme.dart';
+import 'features/webview/presentation/screens/webview_screen.dart';
 
 void main() {
   // Initialize app configurations
   WidgetsFlutterBinding.ensureInitialized();
 
   // Log current environment
-  debugPrint('Starting Uneseule app in ${Environment.current.name} mode');
-  debugPrint('API Base URL: ${Environment.apiBaseUrl}');
+  debugPrint(
+    'Starting Uneseule WebView app in ${Environment.current.name} mode',
+  );
+  debugPrint('WebApp URL: ${Environment.webAppUrl}');
 
   runApp(
     // ProviderScope is required for Riverpod state management
@@ -20,24 +21,19 @@ void main() {
 }
 
 /// Root application widget
-class UneseuleApp extends ConsumerWidget {
+class UneseuleApp extends StatelessWidget {
   const UneseuleApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(routerProvider);
-
-    return MaterialApp.router(
+  Widget build(BuildContext context) {
+    return MaterialApp(
       title: 'Uneseule',
       debugShowCheckedModeBanner: false,
-
-      // Apply custom theme
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.light,
-
-      // Router configuration
-      routerConfig: router,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
+      ),
+      home: const WebViewScreen(),
     );
   }
 }

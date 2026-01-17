@@ -354,8 +354,9 @@ class __$$WifiCredentialsImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$WifiCredentialsImpl implements _WifiCredentials {
-  const _$WifiCredentialsImpl({required this.ssid, required this.password});
+class _$WifiCredentialsImpl extends _WifiCredentials {
+  const _$WifiCredentialsImpl({required this.ssid, required this.password})
+    : super._();
 
   /// WiFi 네트워크 이름
   @override
@@ -395,11 +396,12 @@ class _$WifiCredentialsImpl implements _WifiCredentials {
       );
 }
 
-abstract class _WifiCredentials implements WifiCredentials {
+abstract class _WifiCredentials extends WifiCredentials {
   const factory _WifiCredentials({
     required final String ssid,
     required final String password,
   }) = _$WifiCredentialsImpl;
+  const _WifiCredentials._() : super._();
 
   /// WiFi 네트워크 이름
   @override

@@ -36,6 +36,9 @@ class Environment {
     }
   }
 
+  /// WebView URL for the web app
+  static const String webAppUrl = 'https://webview.uneseule.me';
+
   /// Whether to enable debug logging
   static bool get enableDebugLogs {
     return current != EnvironmentType.prod;
