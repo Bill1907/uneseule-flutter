@@ -407,6 +407,157 @@ class ConversationLogs extends _$ConversationLogs {
 
 ---
 
+## WebView JavaScript Bridge Specification
+
+### 통신 구조
+
+```
+┌─────────────────┐                    ┌─────────────────┐
+│   Flutter App   │                    │     WebView     │
+│                 │   UneseuleNative   │    (React)      │
+│  ┌───────────┐  │   postMessage()    │  ┌───────────┐  │
+│  │  Handler  │◀─┼────────────────────┼──│  window   │  │
+│  │           │  │                    │  │ .uneseule │  │
+│  │           │  │   runJavaScript()  │  │  Bridge   │  │
+│  │           │──┼────────────────────┼─▶│           │  │
+│  └───────────┘  │   (Base64 encoded) │  └───────────┘  │
+└─────────────────┘                    └─────────────────┘
+```
+
+### 메시지 형식
+
+**요청 (WebView → Flutter)**:
+```javascript
+{
+  "id": "1",              // 요청 ID (응답 매칭용)
+  "method": "scanDevices", // 메서드 이름
+  "params": {}            // 파라미터 (선택)
+}
+```
+
+**응답 (Flutter → WebView)**:
+```javascript
+{
+  "id": "1",
+  "success": true,
+  "data": { ... }         // 성공 시 데이터
+}
+// 또는
+{
+  "id": "1",
+  "success": false,
+  "error": {
+    "code": 2001,
+    "name": "notConnected",
+    "message": "디바이스에 연결되지 않았습니다"
+  }
+}
+```
+
+**이벤트 (Flutter → WebView)**:
+```javascript
+{
+  "type": "scanResult",
+  "payload": { "devices": [...] }
+}
+```
+
+### JavaScript API
+
+```javascript
+// Bridge 준비 확인
+window.addEventListener('uneseuleBridgeReady', () => {
+  console.log('Bridge ready');
+});
+
+// === BLE API ===
+await uneseuleBridge.ble.isBluetoothEnabled()
+// → { enabled: boolean }
+
+await uneseuleBridge.ble.scanDevices()
+// → null (결과는 'scanResult' 이벤트로 수신)
+
+await uneseuleBridge.ble.stopScan()
+// → null
+
+await uneseuleBridge.ble.connect(deviceId)
+// → { connected: boolean }
+
+await uneseuleBridge.ble.disconnect()
+// → null
+
+await uneseuleBridge.ble.readDeviceInfo()
+// → { id, name, macAddress, firmwareVersion, batteryLevel, secretKey, rssi }
+
+await uneseuleBridge.ble.sendWifiCredentials(ssid, password)
+// → null (결과는 'wifiStatusChanged' 이벤트로 수신)
+
+await uneseuleBridge.ble.sendProvisioningCommand(command)
+// → null
+
+// === 권한 API ===
+await uneseuleBridge.permissions.check()
+// → { granted: boolean, permissions: { bluetoothScan, bluetoothConnect, location } }
+
+await uneseuleBridge.permissions.request()
+// → { granted: boolean, permissions: { ... } }
+
+await uneseuleBridge.permissions.openSettings()
+// → { opened: boolean }
+```
+
+### 이벤트 구독
+
+```javascript
+// 이벤트 리스너 등록
+uneseuleBridge.on('eventType', (payload) => { ... });
+
+// 이벤트 리스너 해제
+uneseuleBridge.off('eventType', callback);
+```
+
+| 이벤트 | Payload | 설명 |
+|--------|---------|------|
+| `initialState` | `{ bluetooth, permissions, platform }` | WebView 로드 시 초기 상태 |
+| `scanResult` | `{ devices: [{ id, name, rssi, isConnectable }] }` | 스캔된 디바이스 목록 |
+| `scanComplete` | `{}` | 스캔 완료 |
+| `scanError` | `{ error: string }` | 스캔 오류 |
+| `connectionStateChanged` | `{ connected: boolean }` | 연결 상태 변경 |
+| `batteryLevelChanged` | `{ level: number }` | 배터리 레벨 변경 (0-100) |
+| `wifiStatusChanged` | `{ state, ssid, ipAddress, errorMessage }` | WiFi 상태 변경 |
+
+### 에러 코드
+
+| 범위 | 카테고리 | 코드 | 이름 | 설명 |
+|------|---------|------|------|------|
+| 1000-1999 | 일반 | 1000 | unknownError | 알 수 없는 오류 |
+| | | 1001 | methodNotFound | 메서드 없음 |
+| | | 1002 | invalidParams | 잘못된 파라미터 |
+| | | 1003 | timeout | 타임아웃 |
+| 2000-2999 | BLE | 2000 | bluetoothDisabled | Bluetooth 비활성화 |
+| | | 2001 | notConnected | 디바이스 미연결 |
+| | | 2002 | scanFailed | 스캔 실패 |
+| | | 2003 | connectionFailed | 연결 실패 |
+| 3000-3999 | WiFi | 3000 | wifiProvisioningFailed | WiFi 설정 실패 |
+| | | 3001 | invalidSsid | 잘못된 SSID |
+| | | 3002 | invalidPassword | 잘못된 비밀번호 |
+| 4000-4999 | 권한 | 4000 | permissionDenied | 권한 거부됨 |
+| | | 4001 | permissionPermanentlyDenied | 권한 영구 거부됨 |
+
+### Bridge 파일 구조
+
+```
+lib/core/webview/
+├── ble_bridge_service.dart       # BLE API 구현
+├── bridge_message.dart           # 메시지 모델
+├── bridge_message_handler.dart   # 메시지 라우팅
+├── bridge_errors.dart            # 에러 정의
+├── bridge_state_sync.dart        # 초기 상태 동기화
+└── permission_bridge_service.dart # 권한 API
+```
+
+---
+
 ## Technology Stack
 
 ### Core Framework

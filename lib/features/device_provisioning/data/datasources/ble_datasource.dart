@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import '../../../../core/constants/ble_constants.dart';
@@ -12,6 +13,7 @@ import '../models/wifi_credentials_model.dart';
 class BleDataSource {
   BluetoothDevice? _connectedDevice;
   List<BluetoothService>? _services;
+  bool _isConnecting = false;
 
   StreamSubscription? _connectionSubscription;
   StreamSubscription? _batterySubscription;
@@ -29,6 +31,12 @@ class BleDataSource {
 
   /// WiFi 상태 스트림
   Stream<WifiStatusModel> get wifiStatusStream => _wifiStatusController.stream;
+
+  /// 연결된 디바이스 존재 여부
+  bool get isConnected => _connectedDevice != null;
+
+  /// 연결된 디바이스 ID (null이면 연결 안됨)
+  String? get connectedDeviceId => _connectedDevice?.remoteId.str;
 
   /// BLE 어댑터 상태 확인
   Future<bool> isBluetoothEnabled() async {
@@ -90,10 +98,27 @@ class BleDataSource {
 
   /// 디바이스 연결
   Future<void> connect(String deviceId) async {
-    final device = BluetoothDevice.fromId(deviceId);
+    // 이미 연결 중인 경우 방지
+    if (_isConnecting) {
+      throw Exception('이미 연결 진행 중입니다');
+    }
 
-    // 연결 상태 모니터링
-    _connectionSubscription = device.connectionState.listen((state) {
+    // 이미 연결된 경우 방지
+    if (_connectedDevice != null) {
+      if (_connectedDevice!.remoteId.str == deviceId) {
+        // 같은 디바이스에 이미 연결됨
+        return;
+      }
+      throw Exception('다른 디바이스에 이미 연결되어 있습니다. 먼저 연결을 해제해주세요.');
+    }
+
+    _isConnecting = true;
+
+    try {
+      final device = BluetoothDevice.fromId(deviceId);
+
+      // 연결 상태 모니터링
+      _connectionSubscription = device.connectionState.listen((state) {
       final isConnected = state == BluetoothConnectionState.connected;
       _connectionStateController.add(isConnected);
 
@@ -102,29 +127,32 @@ class BleDataSource {
       }
     });
 
-    // 연결
-    await device.connect(
-      timeout: BleConstants.connectionTimeout,
-      mtu: null, // 자동 MTU 협상
-    );
+      // 연결
+      await device.connect(
+        timeout: BleConstants.connectionTimeout,
+        mtu: null, // 자동 MTU 협상
+      );
 
-    _connectedDevice = device;
+      _connectedDevice = device;
 
-    // MTU 요청 (Android)
-    try {
-      await device.requestMtu(512);
-    } catch (_) {
-      // MTU 요청 실패 무시
+      // MTU 요청 (Android)
+      try {
+        await device.requestMtu(512);
+      } catch (e) {
+        debugPrint('[BLE] MTU 요청 실패: $e');
+      }
+
+      // 서비스 검색
+      _services = await device.discoverServices();
+
+      // 안정화 대기
+      await Future.delayed(BleConstants.serviceDiscoveryDelay);
+
+      // Notification 설정
+      await _setupNotifications();
+    } finally {
+      _isConnecting = false;
     }
-
-    // 서비스 검색
-    _services = await device.discoverServices();
-
-    // 안정화 대기
-    await Future.delayed(BleConstants.serviceDiscoveryDelay);
-
-    // Notification 설정
-    await _setupNotifications();
   }
 
   /// Notification 설정
@@ -192,8 +220,8 @@ class BleDataSource {
         BleConstants.manufacturerNameCharUuid,
       );
       macAddressBytes = await macAddressChar?.read() ?? [];
-    } catch (_) {
-      // 실패 시 빈 값 사용
+    } catch (e) {
+      debugPrint('[BLE] MAC Address 읽기 실패: $e');
     }
 
     // Firmware Version 읽기
@@ -204,8 +232,8 @@ class BleDataSource {
         BleConstants.firmwareRevisionCharUuid,
       );
       firmwareBytes = await firmwareChar?.read() ?? [];
-    } catch (_) {
-      // 실패 시 빈 값 사용
+    } catch (e) {
+      debugPrint('[BLE] Firmware Version 읽기 실패: $e');
     }
 
     // Battery Level 읽기
@@ -217,8 +245,8 @@ class BleDataSource {
       );
       final batteryBytes = await batteryChar?.read() ?? [];
       batteryLevel = batteryBytes.isNotEmpty ? batteryBytes[0] : 0;
-    } catch (_) {
-      // 실패 시 0 사용
+    } catch (e) {
+      debugPrint('[BLE] Battery Level 읽기 실패: $e');
     }
 
     // Secret Key 읽기
@@ -229,16 +257,16 @@ class BleDataSource {
         BleConstants.deviceSecretKeyCharUuid,
       );
       secretKeyBytes = await secretKeyChar?.read();
-    } catch (_) {
-      // 실패 시 null 사용
+    } catch (e) {
+      debugPrint('[BLE] Secret Key 읽기 실패: $e');
     }
 
     // RSSI 읽기
     int rssi = -100;
     try {
       rssi = await _connectedDevice!.readRssi();
-    } catch (_) {
-      // 실패 시 기본값 사용
+    } catch (e) {
+      debugPrint('[BLE] RSSI 읽기 실패: $e');
     }
 
     return DeviceInfoModel.fromBleData(

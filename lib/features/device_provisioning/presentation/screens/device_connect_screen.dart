@@ -61,7 +61,8 @@ class _DeviceConnectScreenState extends ConsumerState<DeviceConnectScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () async {
             await ref.read(deviceConnectionProvider.notifier).disconnect();
-            if (mounted) context.pop();
+            if (!context.mounted) return;
+            context.pop();
           },
         ),
       ),
